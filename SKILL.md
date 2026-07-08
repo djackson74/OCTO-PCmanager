@@ -33,6 +33,7 @@ Provide precise, safe, Microsoft-native guidance for diagnosing, repairing, opti
    - Frequent crashes
    - Disk space issues
    - Network connectivity problems
+   - **Windows Sandbox won't connect / no internet inside Sandbox / installer download fails**
    - Security concerns
 
 2. **Initial Steps**:
@@ -84,6 +85,30 @@ Provide precise, safe, Microsoft-native guidance for diagnosing, repairing, opti
   ipconfig /flushdns
   netsh winsock reset
   ```
+
+### Windows Sandbox (isolated installer / test VMs)
+
+When Sandbox "won't connect" or cannot download a bootstrap script, **diagnose the host first** — Sandbox uses Hyper-V **Default Switch** NAT; the VM often starts fine while host egress is broken.
+
+**Run before installer tests:**
+```powershell
+.\scripts\Test-WindowsSandboxHealth.ps1
+```
+
+**High-signal System events (last 24h):**
+| Id | Provider | Meaning |
+|----|----------|---------|
+| 4266 | Tcpip | UDP ephemeral ports exhausted — DNS/HTTPS from NAT fails |
+| 4003 | WLAN-AutoConfig | Wi-Fi limited connectivity |
+| 7023 | Service Control Manager | LAN IP address conflict |
+
+**Log locations:**
+- `Microsoft-Windows-Hyper-V-VmSwitch-Operational` — Default Switch attach/detach
+- `%LOCALAPPDATA%\Packages\MicrosoftWindows.WindowsSandbox_*\LocalState\Recipes\Default.wsb` — recipe (empty `MappedFolders` forces in-Sandbox download)
+
+**Fix order:** reboot host → resolve LAN IP conflict → stabilize Wi-Fi → prefer **mapped-folder `.wsb`** over in-Sandbox download for OCTO installer smoke tests.
+
+Full write-up: `docs/windows-sandbox.md` (2026-07-08 incident on host GAMER).
 
 - **Security Scans**:
   ```powershell
